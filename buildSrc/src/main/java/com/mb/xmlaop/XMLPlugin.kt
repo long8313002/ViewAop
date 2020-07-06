@@ -3,7 +3,6 @@ package com.mb.xmlaop
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.LibraryExtension
 import com.android.build.gradle.internal.api.BaseVariantImpl
-import com.mb.xmlaop.utils.Tools
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -12,12 +11,13 @@ import java.io.*
 class XMLPlugin : Plugin<Project> {
 
     private lateinit var resetCacheFileMap: MutableMap<File, ByteArray>
-
+    private lateinit var project: Project
 
 
     override fun apply(project: Project) {
 
-        resetCacheFileMap = HashMap()
+        this.project = project
+        this.resetCacheFileMap = HashMap()
 
         //check is library or application
         val hasAppPlugin = project.plugins.hasPlugin("com.android.application")
@@ -74,23 +74,23 @@ class XMLPlugin : Plugin<Project> {
 
             }
 
-            project.gradle.buildFinished{
+            project.gradle.buildFinished {
                 restoreXml()
             }
         }
 
     }
 
-    private fun restoreXml(){
+    private fun restoreXml() {
         val xmlNames = resetCacheFileMap.keys.iterator()
-        while (xmlNames.hasNext()){
+        while (xmlNames.hasNext()) {
 
             val xmlFile = xmlNames.next()
             val xmlValue = resetCacheFileMap[xmlFile]
 
             xmlNames.remove()
 
-            if(xmlValue !=null){
+            if (xmlValue != null) {
                 writeByte(xmlFile, xmlValue)
             }
         }
@@ -103,22 +103,27 @@ class XMLPlugin : Plugin<Project> {
             channelDir.listFiles()?.forEach {
                 transform(it)
             }
-        } else if (channelDir.name.contains("activity_main")) {
-            val byteArray = readFileToByte(channelDir)
-            var content = String(byteArray)
-            resetCacheFileMap[channelDir] = byteArray
-            content = content.replace("Button", "TextView")
-            writeString(channelDir, content)
+        } else if (channelDir.name.endsWith(".xml")) {
+            if (channelDir.parentFile != null && channelDir.parentFile.name == "layout"
+                && channelDir.absolutePath.contains(project.rootDir.absolutePath)
+            ) {
+                val byteArray = readFileToByte(channelDir)
+                var content = String(byteArray)
+                resetCacheFileMap[channelDir] = byteArray
+                content = content.replace("Button", "TextView")
+                writeString(channelDir, content)
+                println("xmlFile==>"+channelDir.name)
+            }
         }
     }
 
-    private fun readFileToByte(file:File): ByteArray {
-        val input =  BufferedInputStream( FileInputStream(file))
-        val out =  ByteArrayOutputStream(1024)
-        val temp =  ByteArray(1024){0}
-        while(true){
+    private fun readFileToByte(file: File): ByteArray {
+        val input = BufferedInputStream(FileInputStream(file))
+        val out = ByteArrayOutputStream(1024)
+        val temp = ByteArray(1024) { 0 }
+        while (true) {
             val size = input.read(temp)
-            if(size == -1){
+            if (size == -1) {
                 break
             }
             out.write(temp, 0, size)
@@ -126,7 +131,6 @@ class XMLPlugin : Plugin<Project> {
         input.close()
         return out.toByteArray()
     }
-
 
 
     private fun writeString(file: File, content: String) {
