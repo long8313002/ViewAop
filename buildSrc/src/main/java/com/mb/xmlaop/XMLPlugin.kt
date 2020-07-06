@@ -3,6 +3,7 @@ package com.mb.xmlaop
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.LibraryExtension
 import com.android.build.gradle.internal.api.BaseVariantImpl
+import com.mb.xmlaop.utils.Tools
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -10,16 +11,12 @@ import java.io.*
 
 class XMLPlugin : Plugin<Project> {
 
-    private lateinit var mcImageProject: Project
     private lateinit var resetCacheFileMap: MutableMap<File, ByteArray>
 
 
-    var isDebugTask = false
-    var isContainAssembleTask = false
 
     override fun apply(project: Project) {
 
-        mcImageProject = project
         resetCacheFileMap = HashMap()
 
         //check is library or application
@@ -30,23 +27,6 @@ class XMLPlugin : Plugin<Project> {
             (project.property("android") as LibraryExtension).libraryVariants
         }
 
-        project.gradle.taskGraph.whenReady {
-            it.allTasks.forEach { task ->
-                val taskName = task.name
-                if (taskName.contains("assemble") || taskName.contains("resguard") || taskName.contains(
-                        "bundle"
-                    )
-                ) {
-                    if (taskName.toLowerCase().endsWith("debug") &&
-                        taskName.toLowerCase().contains("debug")
-                    ) {
-                        isDebugTask = true
-                    }
-                    isContainAssembleTask = true
-                    return@forEach
-                }
-            }
-        }
 
         project.afterEvaluate {
             variants.all { variant ->
@@ -59,27 +39,18 @@ class XMLPlugin : Plugin<Project> {
 
                 mcXmlTask.doLast {
 
-
-                    println("---- McXML Plugin Start ----")
-
                     val dir = variant.allRawAndroidResources.files
 
-                    val start = System.currentTimeMillis()
-
-
                     for (channelDir: File in dir) {
-                        testTransForm(channelDir)
+                        transform(channelDir)
                     }
-
-
-
-                    println("---- McXML Plugin End ----, Total Time(ms) : ${System.currentTimeMillis() - start}")
                 }
 
                 //chmod task
                 val chmodTaskName = "chmod${variant.name.capitalize()}"
                 val chmodTask = project.task(chmodTaskName)
                 chmodTask.doLast {
+
                 }
 
                 //inject task
@@ -98,28 +69,45 @@ class XMLPlugin : Plugin<Project> {
 
                 mergeResourcesTask.doLast {
 
-                    resetCacheFileMap.forEach {
-                        writeByte(it.key, it.value)
-                    }
+                    restoreXml()
                 }
 
+            }
+
+            project.gradle.buildFinished{
+                restoreXml()
             }
         }
 
     }
 
-    fun testTransForm(channelDir: File) {
+    private fun restoreXml(){
+        val xmlNames = resetCacheFileMap.keys.iterator()
+        while (xmlNames.hasNext()){
+
+            val xmlFile = xmlNames.next()
+            val xmlValue = resetCacheFileMap[xmlFile]
+
+            xmlNames.remove()
+
+            if(xmlValue !=null){
+                writeByte(xmlFile, xmlValue)
+            }
+        }
+        resetCacheFileMap.clear()
+    }
+
+    private fun transform(channelDir: File) {
 
         if (channelDir.isDirectory) {
             channelDir.listFiles()?.forEach {
-                testTransForm(it)
+                transform(it)
             }
         } else if (channelDir.name.contains("activity_main")) {
             val byteArray = readFileToByte(channelDir)
             var content = String(byteArray)
-            resetCacheFileMap.put(channelDir, byteArray)
+            resetCacheFileMap[channelDir] = byteArray
             content = content.replace("Button", "TextView")
-            println("zzzzz==>$content")
             writeString(channelDir, content)
         }
     }
