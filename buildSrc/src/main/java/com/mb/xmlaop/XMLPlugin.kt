@@ -42,7 +42,7 @@ class XMLPlugin : Plugin<Project> {
                     val dir = variant.allRawAndroidResources.files
 
                     for (channelDir: File in dir) {
-                        transform(channelDir)
+                        transform(channelDir,XmlTransform(project))
                     }
                 }
 
@@ -97,11 +97,11 @@ class XMLPlugin : Plugin<Project> {
         resetCacheFileMap.clear()
     }
 
-    private fun transform(channelDir: File) {
+    private fun transform(channelDir: File,transform: XmlTransform) {
 
         if (channelDir.isDirectory) {
             channelDir.listFiles()?.forEach {
-                transform(it)
+                transform(it,transform)
             }
         } else if (channelDir.name.endsWith(".xml")) {
             if (channelDir.parentFile != null && channelDir.parentFile.name == "layout"
@@ -110,7 +110,7 @@ class XMLPlugin : Plugin<Project> {
                 val byteArray = readFileToByte(channelDir)
                 var content = String(byteArray)
                 resetCacheFileMap[channelDir] = byteArray
-                content = content.replace("Button", "TextView")
+                content = transform.transform(content)
                 writeString(channelDir, content)
                 println("xmlFile==>"+channelDir.name)
             }
