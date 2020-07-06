@@ -35,9 +35,9 @@ class XMLPlugin : Plugin<Project> {
 
 
                 val mergeResourcesTask = variant.mergeResourcesProvider.get()
-                val mcXmlTask = project.task("McXml${variant.name.capitalize()}")
+                val mbXmlTask = project.task("MBXml${variant.name.capitalize()}")
 
-                mcXmlTask.doLast {
+                mbXmlTask.doLast {
 
                     val dir = variant.allRawAndroidResources.files
 
@@ -59,12 +59,12 @@ class XMLPlugin : Plugin<Project> {
                         mergeResourcesTask
                     )
                 )
-                (project.tasks.findByName(mcXmlTask.name) as Task).dependsOn(
+                (project.tasks.findByName(mbXmlTask.name) as Task).dependsOn(
                     project.tasks.findByName(
                         chmodTask.name
                     ) as Task
                 )
-                mergeResourcesTask.dependsOn(project.tasks.findByName(mcXmlTask.name))
+                mergeResourcesTask.dependsOn(project.tasks.findByName(mbXmlTask.name))
 
 
                 mergeResourcesTask.doLast {
